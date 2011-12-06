@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 # coding=utf-8
 
 # Base Python File (test.py)
@@ -16,38 +16,94 @@ from numpy import *
 from scipy import *
 from scipy.io import loadmat
 from scipy.signal import convolve2d
+from scipy.cluster.vq import vq
 from pylab import *
 from sys import argv,stdout
 from harris import *
-from svmutil import *
 
-model = svm_load_model ("model.dat".encode("latin-1"))
-print ("Loaded SVM model")
+max_iter = 700
+correl_thresh = 0.6
 
-print ("Loading image {0}...".format (argv[1]))
-img = mean (imread (argv[1]), axis=2)
-test_hist,fc = imageHistogram (argv[1])
-ih,iw = img.shape
+def inside (win):
+  """
+  Tests if the location is inside the window win=(x0,y0,x1,y1).
+  The window must have x0 < x1 and y0 < y1.
+  """
+  x0,y0,x1,y1 = win
+  def _inside (point):
+    print point
+    x,y = point
+    return x > x0 and x < x1 and y > y0 and y < y1
+
+  return _inside
+
+clusters = loadmat ("clusters.mat")
+clusters = clusters['clusters'].squeeze()
+ncl,_ = clusters.shape
+print ("Loaded {0} clusters".format (ncl))
+
+neg = loadmat(argv[1])
+neg = neg['samples'].squeeze()
+nsc = len(neg)
+print ("Loaded {0} negative samples".format (nsc))
+
+pos = loadmat(argv[2])
+pos = pos['samples'].squeeze()
+psc = len(pos)
+print ("Loaded {0} positive samples".format (psc))
+
+print ("Loading image {0}...".format (argv[3]))
+img = mean (imread (argv[3]), axis=2)
+test_hist,fc = imageHistogram (argv[3])
+
+if test_hist == None:
+  print ("No features found...")
+  exit(1)
+
+test_hist,_ = vq(test_hist, clusters)
 
 print ("Finding best candidates...")
-p_labels,_,p_vals = svm_predict (zeros(len(fc)), test_hist.tolist(), model)
-ncount = 0
-pcount = 0
 
-for (l,w) in zip(p_labels,p_vals):
-  print ("Label {0} with w={1}".format (l,w))
-  if l == 1:
-    pcount = pcount+w[0]
-  elif l == -1:
-    ncount = ncount-w[0]
+def classifyWindow (words, points, window=None):
+  wfilt = words
+  if window != None:
+    pfilt = apply_along_axis (inside(window), 1, points)
+    wfilt = words[pfilt]
+  print ("Found {0} words".format(len(wfilt)))
 
-stdout.write ("\n")
-print ("Found {0}+/{1}-, score is {2}".format (pcount, ncount, 2*(float(pcount)/float(pcount+ncount) - 0.5)))
+  prod1 = 0.
+  prod0 = 0.
+  pw = 0.
+  for w in unique(wfilt):
+    t1 = len(find(pos == w))
+    t0 = len(find(neg == w))
+    if t1 != 0:
+      prod1 = prod1 + log(float(t1) / float(psc))
+    if t0 != 0:
+      prod0 = prod0 + log(float(t0) / float(nsc))
+    pw = pw + log (float(t1+t0) / float(nsc+psc))
 
-votespace = zeros ((ih,iw))
-for (w,(x,y)) in zip(p_vals,fc):
-  votespace[x,y] = votespace[x,y]+w
+  p1 = log(float(psc)/float(psc+nsc)) + prod1 - pw
+  print ("  -> Log-probability +1: {0}".format(p1))
 
-votespace = convolve2d (votespace, gauss_kernel(50), mode="same")
-imshow (votespace)
-show()
+  p0 = log(float(nsc)/float(psc+nsc)) + prod0 - pw
+  print ("  -> Log-probability -1: {0}".format(p0))
+
+  return p1-p0
+
+ih,iw = img.shape
+def gimp2win (x0,y0,x1,y1):
+  return (ih-y1,x0,ih-y0,x1)
+
+x0 = 360
+y0 = 240
+x1 = 880
+y1 = 650
+wwc = gimp2win (x0,y0,x1,y1)
+
+print ("Image shape: {0}".format(img.shape))
+print ("Classified window, score: {0}".format(classifyWindow (test_hist, fc, wwc)))
+#print ("Classified window, score: {0}".format(classifyWindow (test_hist, fc, None)))
+
+#imshow (img[y1:y0:-1,x0:x1], cmap=cm.gray)
+#show()

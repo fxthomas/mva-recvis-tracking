@@ -95,6 +95,9 @@ def imageHistogram (filename):
   )
 
   # Normalize them
+  if histograms.ndim != 4:
+    return None,None
+
   cnt,_,_,_ = histograms.shape
   histograms = array ( \
     [normalizeBlock ( \
