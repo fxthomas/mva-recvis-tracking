@@ -21,9 +21,6 @@ from pylab import *
 from sys import argv,stdout
 from harris import *
 
-max_iter = 700
-correl_thresh = 0.6
-
 def inside (win):
   """
   Tests if the location is inside the window win=(x0,y0,x1,y1).
@@ -31,7 +28,6 @@ def inside (win):
   """
   x0,y0,x1,y1 = win
   def _inside (point):
-    print point
     x,y = point
     return x > x0 and x < x1 and y > y0 and y < y1
 
@@ -52,8 +48,8 @@ pos = pos['samples'].squeeze()
 psc = len(pos)
 print ("Loaded {0} positive samples".format (psc))
 
-print ("Loading image {0}...".format (argv[3]))
 img = mean (imread (argv[3]), axis=2)
+print ("Loaded image {0} (Shape: {1})".format (argv[3], img.shape))
 test_hist,fc = imageHistogram (argv[3])
 
 if test_hist == None:
@@ -69,7 +65,7 @@ def classifyWindow (words, points, window=None):
   if window != None:
     pfilt = apply_along_axis (inside(window), 1, points)
     wfilt = words[pfilt]
-  print ("Found {0} words".format(len(wfilt)))
+  #print ("Found {0} words".format(len(wfilt)))
 
   prod1 = 0.
   prod0 = 0.
@@ -84,10 +80,10 @@ def classifyWindow (words, points, window=None):
     pw = pw + log (float(t1+t0) / float(nsc+psc))
 
   p1 = log(float(psc)/float(psc+nsc)) + prod1 - pw
-  print ("  -> Log-probability +1: {0}".format(p1))
+  #print ("  -> Log-probability +1: {0}".format(p1))
 
   p0 = log(float(nsc)/float(psc+nsc)) + prod0 - pw
-  print ("  -> Log-probability -1: {0}".format(p0))
+  #print ("  -> Log-probability -1: {0}".format(p0))
 
   return p1-p0
 
@@ -95,15 +91,27 @@ ih,iw = img.shape
 def gimp2win (x0,y0,x1,y1):
   return (ih-y1,x0,ih-y0,x1)
 
-x0 = 360
-y0 = 240
-x1 = 880
-y1 = 650
-wwc = gimp2win (x0,y0,x1,y1)
+scmax = 0.
+wimax = (0,0,0,0)
+for drop in range(200):
+  stdout.write(".")
+  stdout.flush()
 
-print ("Image shape: {0}".format(img.shape))
-print ("Classified window, score: {0}".format(classifyWindow (test_hist, fc, wwc)))
-#print ("Classified window, score: {0}".format(classifyWindow (test_hist, fc, None)))
+  i0 = randint(ih)
+  j0 = randint(iw)
+  i1 = i0 + randint(ih-i0)
+  j1 = j0 + randint(iw-j0)
+  score = classifyWindow (test_hist, fc, (i0,j0,i1,j1))
+  if score > scmax:
+    scmax = score
+    wimax = (i0,j0,i1,j1)
 
-#imshow (img[y1:y0:-1,x0:x1], cmap=cm.gray)
-#show()
+stdout.write("\n")
+print ("Classified window {1}, score: {0}".format(scmax, wimax))
+
+fig = figure()
+i0,j0,i1,j1 = wimax
+
+imshow (img[::-1,:], cmap=cm.gray)
+fig.gca().add_patch (Rectangle((j0,ih-i1), width=(j1-j0), height=(i1-i0), fill=False, color="#ff0000"))
+show()
