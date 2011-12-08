@@ -39,15 +39,32 @@ def inside (win):
 
   return _inside
 
-def computeWordLUT (clusters, samples, ntotal):
-  lut = zeros (len(clusters)+1)
-  nb = len(samples)
+def compute_lut (clusters, neg, pos):
+  # Look-up tables
+  neglut = zeros (len(clusters)+1)
+  poslut = zeros (len(clusters)+1)
+
+  # Number of samples
+  nnb = len(neg)
+  pnb = len(pos)
+
+  # Normalizing coeff for probas
+  pw = 0.
+
   for w in range(len(clusters)):
-    t = len(find (samples == w))
+    t0 = len(find (neg == w))
+    t1 = len(find (pos == w))
+    t = t0 + t1
+    if t0 != 0:
+      neglut[w] = log (float(t0)/float(nnb))
+    if t1 != 0:
+      poslut[w] = log (float(t1)/float(pnb))
     if t != 0:
-      lut[w] = log (float(t)/float(nb))
-  lut[-1] = log(float(nb)/float(ntotal))
-  return lut
+      pw = pw + log(float(t)/float(pnb+nnb))
+  poslut[-1] = log(float(pnb)/float(nnb+pnb))
+  neglut[-1] = log(float(nnb)/float(nnb+pnb))
+
+  return neglut,poslut,pw
 
 def classifyWindow (neglut, poslut, words, points, ncoeff, window=None):
   wfilt = words
@@ -157,17 +174,9 @@ def purge_threshold (wins, sc, th):
     else:
       i = i+1
 
-def detect_objects (clusters, neg, pos, image):
+def detect_objects (clusters, neglut, poslut, ncoeff, image, niter=nrandomiter):
   # Gather info about parameters
   ih,iw = image.shape
-  ncl,_ = clusters.shape
-  nsc = len(neg)
-  psc = len(pos)
-
-  # Compute LUTs
-  print ("Computing look-up tables...")
-  poslut = computeWordLUT (clusters, pos, nsc+psc)
-  neglut = computeWordLUT (clusters, neg, nsc+psc)
 
   # Compute and quantize image features into BOW
   print ("Computing image features...")
@@ -178,17 +187,10 @@ def detect_objects (clusters, neg, pos, image):
   else:
     hist,_ = vq(hist, clusters)
 
-  # Compute normalizing coefficient for log-probabilities
-  pw = 0.
-  for w in range(len(clusters)):
-    t = len(find(pos==w))+len(find(neg==w))
-    if t != 0:
-      pw = pw + log(float(t)/float(psc+nsc))
-
   # Create random windows, and classify them
   scmax = [0,]*nmaxwin
   wimax = [(0,0,0,0)]*nmaxwin
-  for it in range(nrandomiter):
+  for it in range(niter):
     stdout.write("\rFinding windows... {0}%".format(it*100/nrandomiter))
     stdout.flush()
 
@@ -196,7 +198,7 @@ def detect_objects (clusters, neg, pos, image):
     j0 = randint(iw-min_win_size)
     i1 = i0 + randint(min(ih-i0,max_win_size) - min_win_size) + min_win_size-1
     j1 = j0 + randint(min(iw-j0,max_win_size) - min_win_size) + min_win_size-1
-    score = classifyWindow (neglut, poslut, hist, features, pw, (i0,j0,i1,j1))
+    score = classifyWindow (neglut, poslut, hist, features, ncoeff, (i0,j0,i1,j1))
     insert_sorted (scmax, wimax, score, (i0,j0,i1,j1))
 
   purge_threshold (wimax, scmax, threshold_before_op)
@@ -207,7 +209,7 @@ def detect_objects (clusters, neg, pos, image):
   for (wi,sc) in zip(wimax,scmax):
     print ("  {1}, score: {0}".format(sc, wi))
 
-  return wimax,scmax
+  return wimax,scmax,features
 
 def display_windows (image, windows, scores):
   ih,iw = image.shape

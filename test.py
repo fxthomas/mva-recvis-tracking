@@ -30,6 +30,9 @@ print ("Loaded {0} positive samples".format (len(pos)))
 img = mean (imread (argv[3]), axis=2)
 print ("Loaded image {0} {1}".format (argv[3], img.shape))
 
-wins,scores = detect_objects (clusters, neg, pos, img)
-display_windows (img, wins, scores)
+# Compute LUTs
+print ("Computing look-up tables...")
+neglut,poslut,ncoeff = compute_lut (clusters, neg, pos)
 
+wins,scores,_ = detect_objects (clusters, neglut, poslut, ncoeff, img, niter=150)
+display_windows (img, wins, scores)
