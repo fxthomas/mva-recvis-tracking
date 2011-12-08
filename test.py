@@ -80,17 +80,41 @@ for wat in range(len(windows)):
     wa = windows[wat][waj]
 
     # Add window edge
-    G.add_edge (wu(wa,wat), wv(wa,wat), cost=-scores[wat][waj], capacity=1)
+    G.add_edge (wu(wa,wat), wv(wa,wat), cost=-scores[wat][waj], flow=0)
 
     # Add S-links
-    G.add_edge ("S", wu(wa,wat), cost=1., capacity=1)
+    G.add_edge ("S", wu(wa,wat), cost=1., flow=0)
 
     # Add T-links
-    G.add_edge (wv(wa,wat), "T", cost=1., capacity=1)
+    G.add_edge (wv(wa,wat), "T", cost=1., flow=0)
 
     # Add transition edges
     nb_jump = 2
     for wbt in range(wat+1, wat+1+nb_jump):
       for wbj in range(len(windows[wbt])):
         wb = windows[wbt][wbj]
-        G.add_edge (wv(wa,wat), wu(wb,wbt), cost=ijcost(wa,wb,ih*ih+iw*iw), capacity=1)
+        G.add_edge (wv(wa,wat), wu(wb,wbt), cost=ijcost(wa,wb,ih*ih+iw*iw), flow=0)
+
+# Add flow to graph
+for (a,b) in G.edges():
+  G[a][b]['flow'] = 0
+
+# Iterate while we got a negative cost path
+cost = -inf
+pred,dist = None, None
+while cost < 0:
+  pred, dist = nx.algorithms.bellman_ford (G, "S", weight="cost")
+  cost = dist["T"]
+  print cost
+  if cost >= 0:
+    break
+  else:
+    b = "T"
+    while b != "S":
+      a = pred[b]
+      t = G[a][b]['cost']
+      G.remove_edge (a, b)
+      G.add_edge (b, a)
+      G[b][a]['cost'] = -t
+      G[b][a]['flow'] = 1
+      b = a
