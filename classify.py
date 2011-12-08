@@ -174,7 +174,7 @@ def purge_threshold (wins, sc, th):
     else:
       i = i+1
 
-def detect_objects (clusters, neglut, poslut, ncoeff, image, niter=nrandomiter):
+def detect_objects (clusters, neglut, poslut, ncoeff, image, niter=nrandomiter, threshold_before=threshold_before_op, threshold_after=threshold_after_op):
   # Gather info about parameters
   ih,iw = image.shape
 
@@ -191,7 +191,7 @@ def detect_objects (clusters, neglut, poslut, ncoeff, image, niter=nrandomiter):
   scmax = [0,]*nmaxwin
   wimax = [(0,0,0,0)]*nmaxwin
   for it in range(niter):
-    stdout.write("\rFinding windows... {0}%".format(it*100/nrandomiter))
+    stdout.write("\rFinding windows... {0}%".format(it*100/niter))
     stdout.flush()
 
     i0 = randint(ih-min_win_size)
@@ -201,9 +201,9 @@ def detect_objects (clusters, neglut, poslut, ncoeff, image, niter=nrandomiter):
     score = classifyWindow (neglut, poslut, hist, features, ncoeff, (i0,j0,i1,j1))
     insert_sorted (scmax, wimax, score, (i0,j0,i1,j1))
 
-  purge_threshold (wimax, scmax, threshold_before_op)
+  purge_threshold (wimax, scmax, threshold_before)
   purge_overlap (wimax, scmax)
-  purge_threshold (wimax, scmax, threshold_after_op)
+  purge_threshold (wimax, scmax, threshold_after)
 
   print ("\rFound {0} windows after cleanup :".format (len(wimax)))
   for (wi,sc) in zip(wimax,scmax):
@@ -211,7 +211,7 @@ def detect_objects (clusters, neglut, poslut, ncoeff, image, niter=nrandomiter):
 
   return wimax,scmax,features
 
-def display_windows (image, windows, scores):
+def display_windows (image, windows, scores, block=True):
   ih,iw = image.shape
   fig = figure()
   imshow (image[::-1,:], cmap=cm.gray)
@@ -219,4 +219,4 @@ def display_windows (image, windows, scores):
     i0,j0,i1,j1 = wi
     fig.gca().add_patch (Rectangle((j0,ih-i1), width=(j1-j0), height=(i1-i0), fill=False, color="#ff0000"))
     text (j0,ih-i1, "{0}".format(sc), bbox=dict(facecolor='red')) 
-  show()
+  show(block=block)
