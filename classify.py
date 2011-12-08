@@ -20,7 +20,7 @@ from pylab import *
 from sys import stdout
 from harris import *
 
-nrandomiter = 300
+nrandomiter = 400
 nmaxwin = 20
 min_win_size = 24
 max_win_size = 500
@@ -39,31 +39,27 @@ def inside (win):
 
   return _inside
 
-def classifyWindow (neg, pos, words, points, ncoeff, window=None):
-  psc = len(pos)
-  nsc = len(neg)
+def computeWordLUT (clusters, samples, ntotal):
+  lut = zeros (len(clusters)+1)
+  nb = len(samples)
+  for w in range(len(clusters)):
+    t = len(find (samples == w))
+    if t != 0:
+      lut[w] = log (float(t)/float(nb))
+  lut[-1] = log(float(nb)/float(ntotal))
+  return lut
+
+def classifyWindow (neglut, poslut, words, points, ncoeff, window=None):
   wfilt = words
   if window != None:
     pfilt = apply_along_axis (inside(window), 1, points)
     wfilt = words[pfilt]
-  #print ("Found {0} words".format(len(wfilt)))
 
-  prod1 = 0.
-  prod0 = 0.
-  for w in unique(wfilt):
-    t1 = len(find(pos == w))
-    t0 = len(find(neg == w))
-    if t1 != 0:
-      prod1 = prod1 + log(float(t1) / float(psc))
-    if t0 != 0:
-      prod0 = prod0 + log(float(t0) / float(nsc))
+  wu = unique(wfilt)
+  p1 = poslut[-1] + sum(poslut[wu])
+  p0 = neglut[-1] + sum(neglut[wu])
 
-  p1 = log(float(psc)/float(psc+nsc)) + prod1
-  #print ("  -> Log-probability +1: {0}".format(p1))
-
-  p0 = log(float(nsc)/float(psc+nsc)) + prod0
-  #print ("  -> Log-probability -1: {0}".format(p0))
-  
+  # Compute log-probabilitiesa
   pp = abs((p1+p0)/2 - ncoeff)/abs(ncoeff)
   return (p1-p0)*pp
 
@@ -162,11 +158,19 @@ def purge_threshold (wins, sc, th):
       i = i+1
 
 def detect_objects (clusters, neg, pos, image):
-  # Compute and quantize image features into BOW
+  # Gather info about parameters
   ih,iw = image.shape
   ncl,_ = clusters.shape
   nsc = len(neg)
   psc = len(pos)
+
+  # Compute LUTs
+  print ("Computing look-up tables...")
+  poslut = computeWordLUT (clusters, pos, nsc+psc)
+  neglut = computeWordLUT (clusters, neg, nsc+psc)
+
+  # Compute and quantize image features into BOW
+  print ("Computing image features...")
   hist,features = imageHistogram (image)
   if hist == None:
     print ("No features found...")
@@ -192,7 +196,7 @@ def detect_objects (clusters, neg, pos, image):
     j0 = randint(iw-min_win_size)
     i1 = i0 + randint(min(ih-i0,max_win_size) - min_win_size) + min_win_size-1
     j1 = j0 + randint(min(iw-j0,max_win_size) - min_win_size) + min_win_size-1
-    score = classifyWindow (neg, pos, hist, features, pw, (i0,j0,i1,j1))
+    score = classifyWindow (neglut, poslut, hist, features, pw, (i0,j0,i1,j1))
     insert_sorted (scmax, wimax, score, (i0,j0,i1,j1))
 
   purge_threshold (wimax, scmax, threshold_before_op)
