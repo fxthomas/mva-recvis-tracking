@@ -14,11 +14,10 @@
 from hog import *
 from numpy import *
 from scipy import *
-from scipy.io import loadmat
 from scipy.signal import convolve2d
 from scipy.cluster.vq import vq
 from pylab import *
-from sys import argv,stdout
+from sys import stdout
 from harris import *
 
 nrandomiter = 300
@@ -68,7 +67,7 @@ def classifyWindow (neg, pos, words, points, ncoeff, window=None):
   pp = abs((p1+p0)/2 - ncoeff)/abs(ncoeff)
   return (p1-p0)*pp
 
-def gimp2win(ih) :
+def gimp2win(ih):
   return lambda (x0,y0,x1,y1):(ih-y1,x0,ih-y0,x1)
 
 def gauss_kernel_for_size (h,w):
@@ -215,21 +214,3 @@ def display_windows (image, windows, scores):
     fig.gca().add_patch (Rectangle((j0,ih-i1), width=(j1-j0), height=(i1-i0), fill=False, color="#ff0000"))
     text (j0,ih-i1, "{0}".format(sc), bbox=dict(facecolor='red')) 
   show()
-
-clusters = loadmat ("clusters.mat")
-clusters = clusters['clusters'].squeeze()
-print ("Loaded {0} clusters".format (len(clusters)))
-
-neg = loadmat(argv[1])
-neg = neg['samples'].squeeze()
-print ("Loaded {0} negative samples".format (len(neg)))
-
-pos = loadmat(argv[2])
-pos = pos['samples'].squeeze()
-print ("Loaded {0} positive samples".format (len(pos)))
-
-img = mean (imread (argv[3]), axis=2)
-print ("Loaded image {0} {1}".format (argv[3], img.shape))
-
-wins,scores = detect_objects (clusters, neg, pos, img)
-display_windows (img, wins, scores)
