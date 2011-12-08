@@ -15,6 +15,7 @@ from hog import *
 from harris import *
 from scipy.io import loadmat,savemat
 from scipy.cluster.vq import vq
+from pylab import *
 
 clusters = loadmat ("clusters.mat")
 clusters = clusters['clusters']
@@ -25,7 +26,7 @@ path = argv[1]
 hlist = None
 for infile in glob.glob(os.path.join(path, "*.*")):
   print ("Processing {0}...".format (infile))
-  hh,_ = imageHistogram (infile)
+  hh,_ = imageHistogram (imread(infile))
   if hh != None:
     if hlist == None:
       hlist = hh

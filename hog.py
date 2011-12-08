@@ -57,10 +57,7 @@ def maxCorrel (hog1, hog2):
   """
   return max (correlate (hog1, hog2))
 
-def imageHistogram (filename):
-  # Load image
-  img = imread (filename)
-
+def imageHistogram (img):
   # Convert to grayscale
   if img.ndim == 3:
     img = mean (img, axis=2)

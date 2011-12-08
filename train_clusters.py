@@ -16,6 +16,7 @@ from hog import *
 from harris import *
 from scipy.cluster.vq import kmeans, whiten
 from scipy.io import savemat
+from pylab import *
 
 nb_clusters = 400
 
@@ -25,7 +26,7 @@ hlist = None
 for path in argv:
   for infile in glob.glob(os.path.join(path, "*.*")):
     print ("Processing {0}...".format (infile))
-    hh,_ = imageHistogram (infile)
+    hh,_ = imageHistogram (imread(infile))
     if hh != None:
       if hlist == None:
         hlist = hh
