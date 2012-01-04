@@ -66,6 +66,9 @@ def compute_lut (clusters, neg, pos):
 
   return neglut,poslut,pw
 
+def compute_sat (image):
+  sat = zeros (image.shape)
+
 def classifyWindow (neglut, poslut, words, points, ncoeff, window=None):
   wfilt = words
   if window != None:
@@ -118,19 +121,23 @@ def insert_sorted (l1, l2, e1, e2):
 def overlap (wina, winb):
   xa0,ya0,xa1,ya1 = wina
   xb0,yb0,xb1,yb1 = winb
-  if xa0 > xb1:
-    return 0.
-  elif xa1 < xb0:
-    return 0.
-  elif ya0 > yb1:
-    return 0.
-  elif ya1 < yb0:
-    return 0.
+
+  _xa0 = min(xa0,xa1)
+  _ya0 = min(ya0,ya1)
+  _xa1 = max(xa0,xa1)
+  _ya1 = max(ya0,ya1)
+  _xb0 = min(xb0,xb1)
+  _yb0 = min(yb0,yb1)
+  _xb1 = max(xb0,xb1)
+  _yb1 = max(yb0,yb1)
+
+  x_overlap = min (_xb1, _xa1) - max (_xb0, _xa0)
+  y_overlap = min (_yb1, _ya1) - max (_yb0, _ya0)
+  overlap = x_overlap*y_overlap
+  area1 = (_xa1-_xa0)*(_ya1-_ya0)
+  if area1 == 0 or x_overlap < 0 or y_overlap < 0:
+    return 0
   else:
-    x_overlap = min (xb1, xa1) - max (xb0, xa0)
-    y_overlap = min (yb1, ya1) - max (yb0, ya0)
-    overlap = x_overlap*y_overlap
-    area1 = (xa1-xa0)*(ya1-ya0)
     return float(overlap)/float(area1)
 
 def mean_window (wina, winb):
@@ -201,9 +208,9 @@ def detect_objects (clusters, neglut, poslut, ncoeff, image, niter=nrandomiter, 
     score = classifyWindow (neglut, poslut, hist, features, ncoeff, (i0,j0,i1,j1))
     insert_sorted (scmax, wimax, score, (i0,j0,i1,j1))
 
-  purge_threshold (wimax, scmax, threshold_before)
+#  purge_threshold (wimax, scmax, threshold_before)
   purge_overlap (wimax, scmax)
-  purge_threshold (wimax, scmax, threshold_after)
+#  purge_threshold (wimax, scmax, threshold_after)
 
   print ("\rFound {0} windows after cleanup :".format (len(wimax)))
   for (wi,sc) in zip(wimax,scmax):
@@ -218,5 +225,5 @@ def display_windows (image, windows, scores, block=True):
   for (wi, sc) in zip(windows, scores):
     i0,j0,i1,j1 = wi
     fig.gca().add_patch (Rectangle((j0,ih-i1), width=(j1-j0), height=(i1-i0), fill=False, color="#ff0000"))
-    text (j0,ih-i1, "{0}".format(sc), bbox=dict(facecolor='red')) 
+    text (j0,ih-i1, "{0:.3f}".format(sc), bbox=dict(facecolor='red')) 
   show(block=block)

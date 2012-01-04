@@ -20,7 +20,7 @@ from pylab import *
 
 nb_clusters = 400
 
-# scan argument path and compute hogs for each negative image
+# scan argument path and compute hogs for each image
 print ("Processing images...")
 hlist = None
 for path in argv:

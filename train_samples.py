@@ -20,7 +20,7 @@ from pylab import *
 clusters = loadmat ("clusters.mat")
 clusters = clusters['clusters']
 
-# scan argument path and compute hogs for each negative image
+# scan argument path and compute hogs for each image
 print ("Processing images...")
 path = argv[1]
 hlist = None
