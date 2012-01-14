@@ -24,7 +24,7 @@ nrandomiter = 400
 nmaxwin = 20
 min_win_size = 24
 max_win_size = 500
-threshold_before_op = 7.
+threshold_before_op = 0.
 threshold_after_op = 15.
 
 def inside (win):
@@ -66,22 +66,34 @@ def compute_lut (clusters, neg, pos):
 
   return neglut,poslut,pw
 
-def compute_sat (image):
-  sat = zeros (image.shape)
+def sat_compute (neglut, poslut, h, w, hist, features):
+  sat = zeros ((h,w,2))
+  for i in range(len(features)):
+    fx,fy = features[i]
+    sat[fx,fy,0] = neglut[hist[i]]
+    sat[fx,fy,1] = poslut[hist[i]]
 
-def classifyWindow (neglut, poslut, words, points, ncoeff, window=None):
-  wfilt = words
-  if window != None:
-    pfilt = apply_along_axis (inside(window), 1, points)
-    wfilt = words[pfilt]
+  for i in range (h):
+    for j in range (w):
+      if i > 0:
+        sat[i,j,:] = sat[i,j,:] + sat[i-1,j,:]
+      if j > 0:
+        sat[i,j,:] = sat[i,j,:] + sat[i,j-1,:]
+      if i > 0 and j > 0:
+        sat[i,j,:] = sat[i,j,:] - sat[i-1,j-1,:]
+  return sat
 
-  wu = unique(wfilt)
-  p1 = poslut[-1] + sum(poslut[wu])
-  p0 = neglut[-1] + sum(neglut[wu])
+def sat_sum (sat, x0, y0, x1, y1, k):
+  return sat[x0,y0,k] + sat[x1,y1,k] - sat[x0,y1,k] - sat[x1,y0,k]
+
+def classifyWindow (negc, posc, sat, window=None):
+  wx0,wy0,wx1,wy1 = window
+  p1 = posc + sat_sum (sat, wx0, wy0, wx1, wy1, 1)
+  p0 = negc + sat_sum (sat, wx0, wy0, wx1, wy1, 0)
 
   # Compute log-probabilitiesa
-  pp = abs((p1+p0)/2 - ncoeff)/abs(ncoeff)
-  return (p1-p0)*pp
+  #pp = abs((p1+p0)/2 - ncoeff)/abs(ncoeff)
+  return (p1-p0)#*pp
 
 def gimp2win(ih):
   return lambda (x0,y0,x1,y1):(ih-y1,x0,ih-y0,x1)
@@ -194,23 +206,26 @@ def detect_objects (clusters, neglut, poslut, ncoeff, image, niter=nrandomiter, 
   else:
     hist,_ = vq(hist, clusters)
 
+  # Compute SAT before classifying (for quicker area sums)
+  prb_sat = sat_compute (neglut, poslut, ih, iw, hist, features)
+
   # Create random windows, and classify them
   scmax = [0,]*nmaxwin
   wimax = [(0,0,0,0)]*nmaxwin
-  for it in range(niter):
-    stdout.write("\rFinding windows... {0}%".format(it*100/niter))
-    stdout.flush()
+  patch_size = 100
+  for i0 in range (0, ih-patch_size, patch_size/10):
+    for j0 in range (0, iw-patch_size, patch_size/10):
+      stdout.write("\rFinding windows... {0}%".format(i0*j0*100/ih/iw))
+      stdout.flush()
 
-    i0 = randint(ih-min_win_size)
-    j0 = randint(iw-min_win_size)
-    i1 = i0 + randint(min(ih-i0,max_win_size) - min_win_size) + min_win_size-1
-    j1 = j0 + randint(min(iw-j0,max_win_size) - min_win_size) + min_win_size-1
-    score = classifyWindow (neglut, poslut, hist, features, ncoeff, (i0,j0,i1,j1))
-    insert_sorted (scmax, wimax, score, (i0,j0,i1,j1))
+      i1 = i0 + patch_size
+      j1 = j0 + patch_size
+      score = classifyWindow (neglut[-1], poslut[-1], prb_sat, (i0,j0,i1,j1))
+      insert_sorted (scmax, wimax, score, (i0,j0,i1,j1))
 
-#  purge_threshold (wimax, scmax, threshold_before)
+  #purge_threshold (wimax, scmax, threshold_before)
   purge_overlap (wimax, scmax)
-#  purge_threshold (wimax, scmax, threshold_after)
+  #purge_threshold (wimax, scmax, threshold_after)
 
   print ("\rFound {0} windows after cleanup :".format (len(wimax)))
   for (wi,sc) in zip(wimax,scmax):
