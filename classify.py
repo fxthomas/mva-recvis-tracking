@@ -207,6 +207,7 @@ def detect_objects (clusters, neglut, poslut, ncoeff, image, niter=nrandomiter, 
     hist,_ = vq(hist, clusters)
 
   # Compute SAT before classifying (for quicker area sums)
+  print ("Pre-computing probabilistic SAT...")
   prb_sat = sat_compute (neglut, poslut, ih, iw, hist, features)
 
   # Create random windows, and classify them
