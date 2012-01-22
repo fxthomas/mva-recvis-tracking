@@ -23,3 +23,10 @@ The data I used in this project came from two sources, so feel free to check the
  * **ETH Moving Sequences Dataset** : http://www.vision.ee.ethz.ch/~aess/dataset/
 
 That's all folks! See my report for more, and hope you like it!
+
+What do I need ?
+----------------
+ * Python 2
+ * NetworkX
+ * SciPy, NumPy and Matplotlib
+ * MATLAB for running the object detector (some results are included in the _seq_ethms_results.mat_ file)
