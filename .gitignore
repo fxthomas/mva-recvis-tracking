@@ -3,3 +3,5 @@ images/
 *.dat
 *.mat
 *.swp
+*.graph
+*.tar.gz

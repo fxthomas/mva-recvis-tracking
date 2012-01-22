@@ -136,10 +136,16 @@ while cost < 0:
     while b != "S":
       a = pred[b]
       t = G[a][b]['cost']
+      f = G[a][b]['flow']
       G.remove_edge (a, b)
       G.add_edge (b, a)
       G[b][a]['cost'] = -t
-      G[b][a]['flow'] = 1
+
+      if f == 1:
+        G[b][a]['flow'] = 0
+      else:
+        G[b][a]['flow'] = 1
+
       b = a
 
 # Find track ids
@@ -176,10 +182,14 @@ def reclabel (G, ns, color):
     return -1
 
 for ns in G.neighbors('T'):
-  lenlist.append (reclabel (G, ns, col.rgb2hex ((rand(), rand(), rand()))))
+  if G['T'][ns]['flow'] == 0:
+    continue
 
-print "Found tracks with lengths: ".format(current_track_id)
-print lenlist
+  print "   [Track {0}]".format (current_track_id+1)
+  lenlist.append (reclabel (G, ns, col.rgb2hex ((rand(), rand(), rand()))))
+  current_track_id = current_track_id+1
+
+print "Found tracks with lengths: ", lenlist
 
 
 print ("Displaying images...")

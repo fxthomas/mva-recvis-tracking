@@ -234,9 +234,11 @@ def detect_objects (clusters, neglut, poslut, ncoeff, image, niter=nrandomiter, 
 
   return wimax,scmax,features
 
-def display_windows (image, windows, scores, block=True):
+def display_windows (image, windows, scores, block=True, title_text=None):
   ih,iw = image.shape
   fig = figure()
+  if (title_text != None):
+    title (title_text)
   imshow (image[::-1,:], cmap=cm.gray)
   for (wi, sc) in zip(windows, scores):
     i0,j0,i1,j1 = wi
