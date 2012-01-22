@@ -80,6 +80,9 @@ class Track:
     else:
       return None
 
+  def __len__ (self):
+    return len(self.window_ids)
+
 tracks = []
 fp = open ("seq_ethms_tracks.dat")
 line_expr = re.compile (r"(?P<track_id>\d+):\s*(?P<start_frame>\d+):\s*(?P<frames>(\d+,)+\d+)\n")
@@ -171,8 +174,10 @@ for (s,f) in _mapped_tids:
     mapped_tids.append ((s,f))
 
 # Compute some stats
-track_switching = []
+track_switching = {}
 track_nrdetected = {}
+track_switching_percent = {}
+track_nrdetected_percent = {}
 cur_mtid = 0
 
 for (sf,t) in mapped_tids:
@@ -202,9 +207,23 @@ for (sf,t) in mapped_tids:
       track_nrdetected[t] = 1
 
   print " --- Track {0} end at frame {1} spanning real tracks {2} --- ".format (cur_mtid, sf+pk, nlt)
+  track_switching[cur_mtid] = tid_switch_count
   cur_mtid = cur_mtid + 1
-  track_switching.append (tid_switch_count)
+
+print "--------------"
+print ""
+print "Track Switching (N):", track_switching
+print "Detected Count Per Real Track (N):", track_nrdetected
+
+for k in track_switching.keys():
+  _,t = mapped_tids[k]
+  track_switching_percent[k] = float(track_switching[k]) * 100. / float(len(t))
+for k in track_nrdetected.keys():
+  track_nrdetected_percent[k] = float(track_nrdetected[k]) * 100. / float(len(tracks[k]))
+
+print "Track Switching (%):", track_switching_percent
+print "Detected Count Per Real Track (%):", track_nrdetected_percent
 
 print ""
-print track_switching
-print track_nrdetected
+print "TS Range (%): ", min(track_switching_percent.values()), float(sum(track_switching_percent.values()))/float(len(track_switching_percent)), max(track_switching_percent.values())
+print "DC Range (%): ", min(track_nrdetected_percent.values()), float(sum(track_nrdetected_percent.values()))/float(len(track_nrdetected_percent)), max(track_nrdetected_percent.values())
