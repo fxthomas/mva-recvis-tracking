@@ -1,0 +1,198 @@
+\documentclass{letter}
+\usepackage{amsmath,graphicx,bbm}
+
+%%%%%%%%%% Start TeXmacs macros
+\newcommand{\section}[1]{\medskip\bigskip
+
+\noindent\textbf{\LARGE #1}}
+\newcommand{\subsection}[1]{\medskip\bigskip
+
+\noindent\textbf{\Large #1}}
+\newcommand{\tmem}[1]{{\em #1\/}}
+\newcommand{\tmop}[1]{\ensuremath{\operatorname{#1}}}
+\newcommand{\tmstrong}[1]{\textbf{#1}}
+\newcommand{\tmtexttt}[1]{{\ttfamily{#1}}}
+%%%%%%%%%% End TeXmacs macros
+
+\begin{document}
+
+\title{Object Recognition -- Graphical Models\\
+{\tmem{Joint Project}}}\author{Fran\c{c}ois-Xavier Thomas}\maketitle
+
+\section{Project Goal}
+
+The goals of this project are :
+\begin{itemize}
+  \item First, to study a paper by Hamed Pirsiavash, Deva Ramanan and Charless
+  C. Fowlkes called {\tmem{Globally-Optimal Greedy Algorithms for Tracking a
+  Variable Number of Objects}}, which outlines a very efficient network-flow
+  based method, as well as some improved algorithms, to achieve multiple
+  object tracking.
+  
+  \item Then, to understand how the algorithm mentioned above is related to
+  the Viterbi algorithm, and why the authors of the paper modified it.
+  
+  \item Finally, to propose ways to improve the original algorithm described
+  in the paper.
+\end{itemize}
+
+\section{Detecting objects}
+
+The previously mentioned paper used the part-based HOG object detector from
+\tmtexttt{{\tmstrong{http://www.cs.brown.edu/\~{ }pff/latent/}}} as input data
+for their algorithm.
+
+I first tried to make my own object detector, using HOG features with the Bag
+of Words approach, associated with a naive Bayes probability estimation for
+sliding windows. I'm going to roughly explain how my version works here :
+\begin{enumerate}
+  \item Get HOG features from positive and negative images
+  
+  \item Cluster these features into bags of words
+  
+  \item Train a classifier with those bags of words (I used a naive Bayes
+  classifier, but one can use any other)
+\end{enumerate}
+Classifying an object $x$ then works without problem. The output of my
+classifier is $\log \frac{\mathbbm{P} \left( \tmop{positive} |x
+\right)}{\mathbbm{P} \left( \tmop{negative} |x \right)}$ : I used a log scale
+because of floating point accuracy.
+
+But as it wasn't very fast and not reliable enough (although the results
+weren't so bad) for the object tracking algorithm's purposes, I decided to
+switch to the original algorithm.
+
+\section{Tracking one object}
+
+Tracking one object -- meaning, retrieving the most probable track -- is the
+first step towards tracking multiple objects at once : these 2 methods can
+both be used to achieve that goal.
+
+First, what is tracking ? Well, detecting the positions of objects on each
+frame is nice, but sometimes, you want to track the position of a
+{\tmem{specific}} object {\tmem{across time}}. Tracking is exactly that :
+grouping together successive positions of the {\tmem{same object}} in each
+frame. There are two events in the life of a track : its birth, or
+instantiation, when the object is first detected, and its death, or
+destruction, when the object is last detected.
+
+\subsection{Graph-based method}
+
+The first -- and easiest to understand -- algorithm introduced in the paper is
+a graph-based method. There is a pair of nodes on the graph for each detected
+window on each frame, associated with a cost incurred by selecting the window.
+The costs used here are better explained with a sketch of the graph :
+
+\begin{center}
+  \scalebox{0.45}{\includegraphics{Rapport-1.eps}}
+\end{center}
+
+There is :
+\begin{itemize}
+  \item A cost for selecting a node on the track (the more probable the
+  window, the lesser the cost $c_i$ -- in red)
+  
+  \item A cost for creating (instantiating) a track at a specific node
+  ($c_i^{\left( s \right)}$, in yellow)
+  
+  \item A cost for destroying a track at a specific node ($c_i^{\left( t
+  \right)}$, in purple)
+  
+  \item A cost for transitioning between nodes ($c_{i, j}$ in blue)
+\end{itemize}
+By taking into account all these costs, the most probable track is easily
+found as the {\tmem{minimum cost path}}. This method actually has a
+probabilistic interpretation, as well as specific costs associated with a
+probability, but it is described in detail inside the paper.
+
+To find the minimum cost path, one can use the {\tmem{Bellman-Ford}} algorithm
+(as described in the paper), but it is {\tmem{quite slow}} (complexity is
+$\mathcal{O} \left( \left| V \right|  \right| E \left| \right) =\mathcal{O}
+\left( \left( 2 N + 2 \right) \times \left( N^2 + 3 N \right) \right)
+=\mathcal{O} \left( N^3 \right)$ in the worst case, where $N$ is the number of
+detected windows in state space).
+
+\subsection{Improved method}
+
+While the Viterbi algorithm isn't explicitely mentioned in the paper, we are
+going to see that the improved DP algorithm used here is actually a modified
+version of the original Viterbi.
+
+Let's begin by applying Viterbi with observed data $Y = \left( y_t \right)_{t
+\in \left[ \left| 0, T \right| \right]}$, state space $X = \left\{ \left( i,
+j, s_x, s_y, t \right) \right\}$ containing the whole set of detected windows
+across every frame, and $X_t$ containing the set of detected windows for one
+frame at time $t$.
+\begin{itemize}
+  \item On the first frame, we write ($\pi_x$ being the probability of a track
+  starting at node $x$ and $V_{t, x}$ the probability of most probable state
+  sequence stopping at $t, x$):
+  \begin{eqnarray*}
+    V_{0, x} & = & \mathbbm{P} \left( y_0 |x \right) \times \pi_x\\
+    & = & \mathbbm{P}_{\tmop{fg}} \left( x \right) \times \prod_{z \in X, z
+    \neq x} \mathbbm{P}_{\tmop{bg}} \left( z \right) \times \pi_x\\
+    & = & \ell \left( x \right) \times \prod_{z \in X}
+    \mathbbm{P}_{\tmop{bg}} \left( z \right) \times \pi_x
+  \end{eqnarray*}
+  \item On the following frames, the same thing happens :
+  \begin{eqnarray*}
+    V_{t, x} & = & \mathbbm{P} \left( y_t |x \right) \times \max_{z \in X_{t -
+    1}} \left( \mathbbm{P} \left( z|x \right) \times V_{t - 1, z} \right)\\
+    & = & \mathbbm{P}_{\tmop{fg}} \left( x \right) \times \prod_{z \in X, z
+    \neq x} \mathbbm{P}_{\tmop{bg}} \left( z \right) \times \max_{z \in X_{t -
+    1}} \left( \mathbbm{P} \left( z|x \right) \times V_{t - 1, z} \right)\\
+    & = & \ell \left( x \right) \times \prod_{z \in X}
+    \mathbbm{P}_{\tmop{bg}} \left( z \right) \times \max_{z \in X_{t - 1}}
+    \left( \mathbbm{P} \left( z|x \right) \times V_{t - 1, z} \right)
+  \end{eqnarray*}
+  \item Then, let's recall the notations in the paper :
+  \begin{eqnarray*}
+    c_i & = & - \log \ell \left( i \right)\\
+    c_{i, j} & = & - \log \mathbbm{P} \left( j|i \right)\\
+    c_i^s & = & - \log \mathbbm{P}^s \left( i \right)
+    \text{(\tmop{probability} \tmop{of} \tmop{track} \tmop{starting} \tmop{at}
+    \tmop{node} i)}\\
+    c_i^t & = & - \log \mathbbm{P}^t \left( i \right)
+    \text{(\tmop{probability} \tmop{of} \tmop{track} \tmop{ending} \tmop{at}
+    \tmop{node} i)}
+  \end{eqnarray*}
+  \item Finally, let $K = - \log \prod_{z \in X} \mathbbm{P}_{\tmop{bg}}
+  \left( z \right)$, and write (notice the use of $\min$ instead of $\max$,
+  because $f : x \mapsto - \log x$ is a monotonically decreasing function) :
+  \begin{eqnarray*}
+    \tmop{cost} \left( 0, i \right) & = & - \log V_{0, i} - K\\
+    & = & c_i + c_i^s\\
+    \tmop{cost} \left( t, i \right) & = & c_i + \min_{j \in X_{t - 1}} \left(
+    c_{i, j} + \tmop{cost} \left( t - 1, i \right) \right)
+  \end{eqnarray*}
+\end{itemize}
+These expressions look almost exactly the same as those on {\S}5.2 in the
+original paper. One can implement the algorithm using the very same
+back-pointer structure as the original. Its complexity is
+
+The only thing the authors improved over the basic Viterbi algorithm is that
+they allow tracks to (resp.) begin and end at frames other than resp. 0 and
+$T$. Intuitively, the track can't begin at frame $t$ until $\tmop{cost} \left(
+t, i \right)$ is less than a maximum initial cost of $c_{\max}^s \left( i
+\right) = c_i + c_i^s$. Similarly, the track will be forced to end if the cost
+at frame $t$ is greater than the maximum cost $c_{\max}^t \left( i \right) =
+c_i + c_i^t$.
+
+{\tmstrong{Note.}} One of the strengths of this algorithm is that there is no
+need for highly conservative thresholding on input windows : on the contrary,
+having a lot of them (even with very low scores) can help the algorithm make
+junctions, for instance in case of a window not being detected very well on
+only a few frames.
+
+{\tmstrong{Note.}} The main reason why the authors decided to use $- \log
+V_{t, i}$ instead of $V_{t, i}$ is, I think, that using raw probabilities can
+result in big losses in floating point precision (as probabilities can range
+from numbers like {\tmstrong{$1.$}} to {\tmstrong{$10^{- 1000}$}}, for
+instance), which I noticed often while trying to build my own object detector
+(see above).
+
+\section{Tracking multiple objects}
+
+The
+
+\end{document}
