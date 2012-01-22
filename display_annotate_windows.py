@@ -11,6 +11,8 @@
 # 
 # (ɔ) François-Xavier Thomas <fx.thomas@gmail.com>
 
+# Usage: ./display_annotate_windows.py <start_index>
+
 import classify as cl
 from scipy import *
 from numpy import *

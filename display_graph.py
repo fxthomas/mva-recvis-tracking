@@ -70,8 +70,8 @@ pathname = argv[2]
 figures = [figure() for i in range(len(windows))]
 
 print ("Displaying windows...")
-colors = [col.rgb2hex((rand(), rand(), rand())) for i in range(current_track_id)]
-def reclabel (G, ns, color):
+
+def reclabel (G, ns, color, tid):
   if ns == 'S':
     return 0
 
@@ -81,17 +81,15 @@ def reclabel (G, ns, color):
     if G[ns][neighbor]['flow'] < 1:
       continue
 
-    count = reclabel (G, neighbor, color) + 1
+    count = reclabel (G, neighbor, color, tid) + 1
     if count >= 0:
       ok = True
       break
 
   if ok:
     ia0,ja0,ia1,ja1,f,ta = ns
-    if f == 1:
-      print " ---> Frame {0}".format (ta)
-      figures[ta].gca().add_patch (Rectangle((ja0,ih-ia1), width=(ja1-ja0), height=(ia1-ia0), fill=False, color=color))
-      figures[ta].gca().annotate ("{0:.3f}".format (G[ns][neighbor]['cost']), xy=(ja0, ih-ia1), bbox=dict(facecolor='red'))
+    figures[ta].gca().add_patch (Rectangle((ja0,ih-ia1), width=(ja1-ja0), height=(ia1-ia0), fill=False, color=color))
+    figures[ta].gca().annotate ("{1} ({0:.2f})".format (G[ns][neighbor]['cost'], tid), xy=(ja0, ih-ia1), bbox=dict(facecolor='red'))
     return count
   else:
     return -1
@@ -101,7 +99,7 @@ for ns in G.neighbors('T'):
     continue
 
   print "   [Track {0}]".format (current_track_id+1)
-  lenlist.append (reclabel (G, ns, col.rgb2hex ((rand(), rand(), rand()))))
+  lenlist.append (reclabel (G, ns, col.rgb2hex ((rand(), rand(), rand())), current_track_id))
   current_track_id = current_track_id+1
 
 print "Found tracks with lengths: ", lenlist
@@ -114,9 +112,7 @@ for i in range (len (windows)):
     im = imread ("images/ethms/" + str(image_name[0]))
     figures[i].gca().imshow (im[::1,:], cmap=cm.gray)
     figures[i].savefig (path.join(pathname, "frame-{0}.png".format(i)))
-    del figures[i]
   except Exception as e:
     print "Error loading {0}!".format(image_name)
     print e
     pass
-  gc.collect()

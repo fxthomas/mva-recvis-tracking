@@ -11,7 +11,7 @@
 # 
 # (ɔ) François-Xavier Thomas <fx.thomas@gmail.com>
 
-# Usage: ./test.py neg.mat pos.mat *.jpg
+# Usage: ./test_viterbi_ethms.py seq_ethms_results.mat images/ethms/
 
 import classify
 from classify import *

@@ -204,3 +204,7 @@ for (sf,t) in mapped_tids:
   print " --- Track {0} end at frame {1} spanning real tracks {2} --- ".format (cur_mtid, sf+pk, nlt)
   cur_mtid = cur_mtid + 1
   track_switching.append (tid_switch_count)
+
+print ""
+print track_switching
+print track_nrdetected
